@@ -33,7 +33,7 @@ You can then create a configuration object and initialize the classifier:
 
 ```python
 config = MCPCConfig(classifier_type="mcpcc", norm_type="L2", num_centers=3)
-mcpcc_classifier = MCPCC(config)
+mcpcc_classifier = MCPCClassifier(config)
 ```
 
 You can then train the classifier using the `fit` method:
@@ -54,4 +54,4 @@ Halil Sağlamlar
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.
