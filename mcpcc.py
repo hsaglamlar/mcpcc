@@ -34,10 +34,10 @@ KMEANS_N_INIT = 3
 class MCPCConfig:
     """Configuration options for MCPC classifier."""
 
-    classifier_type: ClassifierType = "epcc"
-    norm_type: NormType = "L1"
-    penalty_coefficient: float = 1.0
-    num_centers: int = 1
+    classifier_type: ClassifierType = "mcpcc"
+    norm_type: NormType = "L2"
+    penalty_coefficient: float = 50.0
+    num_centers: int = 50
     centers: Optional[NDArray] = None
     verbose: bool = False
 
@@ -66,15 +66,16 @@ class MCPCClassifier:
         """Return the appropriate sample arrangement function based on classifier type."""
         algorithm = f"{self.params.classifier_type}{self.params.norm_type}"
 
-        if algorithm.startswith("pcc"):
-            return self._arrange_pcc
-        elif algorithm == "epccL1":
-            return self._arrange_epcc_l1
-        elif algorithm == "epccL2":
-            return self._arrange_epcc_l2
-        elif algorithm.startswith("mcpcc"):
-            return self._arrange_mcpcc
-        raise ValueError(f"Unknown algorithm: {algorithm}")
+        arrangement_functions = {
+            "pccL1": self._arrange_pcc,
+            "pccL2": self._arrange_pcc,
+            "epccL1": self._arrange_epcc_l1,
+            "epccL2": self._arrange_epcc_l2,
+            "mcpccL1": self._arrange_mcpcc,
+            "mcpccL2": self._arrange_mcpcc,
+        }
+
+        return arrangement_functions[algorithm]
 
     @staticmethod
     def _compute_positive_mean(features: NDArray, labels: NDArray) -> NDArray:
@@ -91,6 +92,7 @@ class MCPCClassifier:
                 n_clusters=(self.params.num_centers - 1),
                 n_init=KMEANS_N_INIT,
                 random_state=RANDOM_SEED,
+                algorithm="elkan",
             )
             additional_centers = kmeans.fit(features).cluster_centers_
             centers = np.vstack([centers, additional_centers])
@@ -101,27 +103,24 @@ class MCPCClassifier:
         """Arrange samples for PCC classifier."""
         diff = feature_matrix - self.centers
         norms = np.linalg.norm(diff, ord=self._norm_order, axis=1, keepdims=True)
-        return np.hstack([diff, norms])
+        return np.hstack((diff, norms))
 
     def _arrange_epcc_l1(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for EPCC with L1 norm."""
         diff = feature_matrix - self.centers
-        return np.hstack([diff, np.abs(diff)])
+        return np.hstack((diff, np.abs(diff)))
 
     def _arrange_epcc_l2(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for EPCC with L2 norm."""
         diff = feature_matrix - self.centers
-        return np.hstack([diff, diff * diff])
+        return np.hstack((diff, diff * diff))
 
     def _arrange_mcpcc(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for MCPCC classifier."""
-        distances = np.array(
-            [
-                np.linalg.norm(feature_matrix - center, ord=self._norm_order, axis=1)
-                for center in self.centers
-            ]
-        ).T
-        return np.hstack([feature_matrix - self.centers[-1], distances])
+        distances = np.linalg.norm(
+            feature_matrix[:, None, :] - self.centers, ord=self._norm_order, axis=2
+        )
+        return np.hstack((feature_matrix - self.centers[0], distances))
 
     def _arrange_samples(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples using the pre-selected arrangement function."""
