@@ -1,6 +1,6 @@
 """
 Title: Multi-Center Polyhedral Classifier with Various Distance Metrics
-Description: Implementation of Multi-Center Polyhedral Classifier with L1 andd L2 distance metrics.
+Description: Implementation of Multi-Center Polyhedral Classifier with L1 and L2 distance metrics.
 Version: 0.1
 Authors: Halil Sağlamlar
 
@@ -34,10 +34,10 @@ KMEANS_N_INIT = 3
 class MCPCConfig:
     """Configuration options for MCPC classifier."""
 
-    classifier_type: ClassifierType = "mcpcc"
+    classifier_type: ClassifierType = "epcc"
     norm_type: NormType = "L2"
-    penalty_coefficient: float = 50.0
-    num_centers: int = 50
+    penalty_coefficient: float = 1.0
+    num_centers: int = None
     centers: Optional[NDArray] = None
     verbose: bool = False
 
@@ -129,7 +129,7 @@ class MCPCClassifier:
         return self._arrangement_function(feature_matrix)
 
     def fit(self, features: NDArray, labels: NDArray) -> "MCPCClassifier":
-        """Train the classifier."""
+        """Train the classifier. Find centers, modify the features and fit the model."""
         self.centers = self._compute_centers(features, labels)
         arranged_features = self._arrange_samples(features)
 

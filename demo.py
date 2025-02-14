@@ -8,7 +8,7 @@ from mcpcc import MCPCConfig
 from mcpcc import MCPCClassifier
 
 # Load data
-data = loadmat("./data/chessboard.mat")
+data = np.load("./data/chessboard.npz")
 
 config = MCPCConfig(
     classifier_type="mcpcc",

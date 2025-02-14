@@ -12,7 +12,7 @@ The below image shows a sample classification using the MCPCC classifier. Black 
 
 Refer to the [mcpcc paper](https://dergipark.org.tr/tr/download/article-file/1307973) for more details.
 
-For more information on [Polyhedral Conic Classifiers](https://ieeexplore.ieee.org/document/8798888)
+For more information on [Polyhedral Conic Classifiers](https://ieeexplore.ieee.org/document/8798888) [(alternative link)](https://web.ogu.edu.tr/Storage/mlcv/Uploads/pcc_19.pdf)
 
 ![Polyhedral Conic Classifier ](./resources/epcc_1.png)
 
