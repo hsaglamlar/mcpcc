@@ -1,4 +1,6 @@
 __pycache__/
+models/
+results/
 mcpcc.ipynb
 *.pyc
 *.pyo
