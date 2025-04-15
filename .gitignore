@@ -2,6 +2,7 @@ __pycache__/
 models/
 results/
 mcpcc.ipynb
+tests/
 *.pyc
 *.pyo
 .gitignore
