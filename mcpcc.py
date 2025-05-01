@@ -12,7 +12,7 @@ Sample terminal command to run this script:
 
 # Import necessary libraries
 from dataclasses import dataclass
-from typing import Literal, Optional, Dict, Callable
+from typing import Literal, Optional, Dict, Callable, Tuple, Union
 import argparse
 import os
 import pickle
@@ -24,6 +24,7 @@ from numpy.typing import NDArray
 from sklearn.svm import SVC
 from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.model_selection import KFold
 
 
 # Type definitions
@@ -44,7 +45,7 @@ class MCPCConfig:
     classifier_type: ClassifierType = "epcc"
     norm_type: NormType = "L2"
     penalty_coefficient: float = 1.0
-    num_centers: int = None
+    num_centers: int = 1
     centers: Optional[NDArray] = None
     verbose: bool = False
     use_cache: bool = True
@@ -84,8 +85,8 @@ class MCPCClassifier:
 
         # Initialize cache dictionaries instead of using lru_cache
         # (NumPy arrays aren't hashable for lru_cache)
-        self._distances_cache = {}
-        self._samples_cache = {}
+        self._distances_cache: Dict[Tuple[int, int], NDArray] = {}
+        self._samples_cache: Dict[Tuple[int, int], NDArray] = {}
         self._use_cache = config.use_cache
         self._cache_size = config.cache_size
 
@@ -197,17 +198,26 @@ class MCPCClassifier:
 
     def _arrange_pcc(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for PCC classifier."""
+        if self.centers is None:
+            raise ValueError("Centers not computed. Call fit() first.")
+
         diff = feature_matrix - self.centers
         norms = np.linalg.norm(diff, ord=self._norm_order, axis=1, keepdims=True)
         return np.hstack((diff, norms))
 
     def _arrange_epcc_l1(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for EPCC with L1 norm."""
+        if self.centers is None:
+            raise ValueError("Centers not computed. Call fit() first.")
+
         diff = feature_matrix - self.centers
         return np.hstack((diff, np.abs(diff)))
 
     def _arrange_epcc_l2(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for EPCC with L2 norm."""
+        if self.centers is None:
+            raise ValueError("Centers not computed. Call fit() first.")
+
         diff = feature_matrix - self.centers
         return np.hstack((diff, diff * diff))
 
@@ -216,6 +226,10 @@ class MCPCClassifier:
 
         This is separated to enable caching of distance calculations.
         """
+        # Check if centers are computed
+        if self.centers is None:
+            raise ValueError("Centers not computed. Call fit() first.")
+
         # Create a cache key based on the shape and a hash of the data
         if self._use_cache:
             # Simple cache key based on the first few values and shape
@@ -252,6 +266,10 @@ class MCPCClassifier:
 
     def _arrange_mcpcc(self, feature_matrix: NDArray) -> NDArray:
         """Arrange samples for MCPCC classifier."""
+        # Check if centers are computed
+        if self.centers is None:
+            raise ValueError("Centers not computed. Call fit() first.")
+
         # Get distances (potentially from cache if enabled)
         distances = self._compute_distances(feature_matrix)
 
@@ -361,25 +379,23 @@ class MCPCClassifier:
 
     def cross_validate(
         self, features: NDArray, labels: NDArray, cv: int = 5
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Union[float, NDArray]]:
         """Perform cross-validation on the data."""
-        from sklearn.model_selection import KFold
-
         # Manual cross-validation implementation to avoid scikit-learn clone issues
         kf = KFold(n_splits=cv, shuffle=True, random_state=RANDOM_SEED)
         scores = []
 
         for train_idx, test_idx in kf.split(features):
             # Get train/test split for this fold
-            X_train, X_test = features[train_idx], features[test_idx]
+            x_train, x_test = features[train_idx], features[test_idx]
             y_train, y_test = labels[train_idx], labels[test_idx]
 
             # Create a new classifier with the same configuration
             fold_clf = MCPCClassifier(self.params)
 
             # Train and evaluate
-            fold_clf.fit(X_train, y_train)
-            y_pred = fold_clf.predict(X_test)
+            fold_clf.fit(x_train, y_train)
+            y_pred = fold_clf.predict(x_test)
             fold_score = accuracy_score(y_test.ravel(), y_pred)
             scores.append(fold_score)
 
